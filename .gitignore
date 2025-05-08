@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+output/
+*.log
+
+# Image directories
+heic_images/
+png_images/
+*.heic
+*.png
+*.jpg
+*.jpeg
+
+# macOS
+.DS_Store 
