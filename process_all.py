@@ -34,12 +34,20 @@ def process_images():
     """处理PNG图片并提取文本"""
     print("\n2. 开始处理图片并提取文本...")
     
-    # 运行OCR和GPT处理脚本
+    # 运行OCR处理脚本
     try:
         subprocess.run(['python', 'handwriting_ocr.py'], check=True)
-        print("图片处理完成！")
+        print("OCR处理完成！")
     except subprocess.CalledProcessError as e:
-        print(f"处理过程中出错: {e}")
+        print(f"OCR处理过程中出错: {e}")
+        return False
+    
+    # 运行GPT整理脚本
+    try:
+        subprocess.run(['python', 'gpt_organize.py'], check=True)
+        print("GPT整理完成！")
+    except subprocess.CalledProcessError as e:
+        print(f"GPT整理过程中出错: {e}")
         return False
     
     return True
@@ -58,20 +66,20 @@ def main():
         print("HEIC转换失败，程序终止")
         return
     
-    # 3. 处理图片
+    # 3. 处理图片和文本
     if not process_images():
-        print("图片处理失败，程序终止")
+        print("处理失败，程序终止")
         return
     
     print("\n=== 处理完成 ===")
     print(f"结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("\n处理结果保存在以下位置：")
     print("- OCR结果: output/ocr_results.md")
-    print("- GPT优化结果: output/gpt_results.md")
+    print("- 整理后的文本: output/organized_text.md")
     print("\n使用说明：")
     print("1. 将新的HEIC图片放入 heic_images 目录")
     print("2. 运行此程序：python process_all.py")
-    print("3. 程序会自动完成转换和处理")
+    print("3. 程序会自动完成转换、OCR识别和文本整理")
 
 if __name__ == "__main__":
     main() 

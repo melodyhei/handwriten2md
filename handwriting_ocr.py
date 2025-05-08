@@ -163,6 +163,30 @@ def format_markdown(image_name: str, text: str) -> str:
 
 """
 
+def ocr_text_from_image(image_path: str) -> Tuple[bool, str]:
+    """
+    从图片中提取文本
+    
+    Args:
+        image_path: 图片路径
+        
+    Returns:
+        (success, text): 成功标志和识别文本
+    """
+    try:
+        # 创建OCR实例
+        ocr = BaiduOCR(BAIDU_API_KEY, BAIDU_SECRET_KEY)
+        
+        # 识别文本
+        success, text = ocr.recognize_handwriting(image_path)
+        if not success:
+            return False, text
+            
+        return True, text
+        
+    except Exception as e:
+        return False, f"OCR处理出错: {str(e)}"
+
 def main():
     """主函数示例"""
     # 检查环境变量
