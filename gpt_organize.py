@@ -48,7 +48,7 @@ def save_processed_image(output_dir: str, image_name: str):
 
 def read_ocr_results(file_path: str) -> List[Dict[str, str]]:
     """
-    读取OCR结果文件
+    读取OCR结果文件，只返回未处理过的图片结果
     
     Args:
         file_path: OCR结果文件路径
@@ -60,6 +60,9 @@ def read_ocr_results(file_path: str) -> List[Dict[str, str]]:
     current_image = None
     current_text = []
     
+    # 获取已处理的图片记录
+    processed_images = get_processed_images("output")
+    
     with open(file_path, 'r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
@@ -68,8 +71,8 @@ def read_ocr_results(file_path: str) -> List[Dict[str, str]]:
                 
             # 检查是否是新的图片标题
             if line.startswith('## '):
-                # 保存之前的图片结果
-                if current_image and current_text:
+                # 保存之前的图片结果（如果未处理过）
+                if current_image and current_text and current_image not in processed_images:
                     results.append({
                         'image': current_image,
                         'text': '\n'.join(current_text)
@@ -80,8 +83,8 @@ def read_ocr_results(file_path: str) -> List[Dict[str, str]]:
             elif not line.startswith('---'):
                 current_text.append(line)
     
-    # 保存最后一个图片的结果
-    if current_image and current_text:
+    # 保存最后一个图片的结果（如果未处理过）
+    if current_image and current_text and current_image not in processed_images:
         results.append({
             'image': current_image,
             'text': '\n'.join(current_text)
@@ -189,17 +192,18 @@ def main():
     
     print("开始整理文本...")
     
-    # 清除处理历史
-    clear_processing_history(output_dir)
+    # 获取已处理的图片记录
+    processed_images = get_processed_images(output_dir)
+    print(f"已处理过的图片数量: {len(processed_images)}")
     
     # 读取OCR结果
     print("1. 读取OCR结果...")
     all_texts = read_ocr_results(ocr_file)
     if not all_texts:
-        print("没有找到OCR结果！")
+        print("没有找到新的文本需要整理！")
         return
     
-    print(f"找到 {len(all_texts)} 个文本片段需要整理")
+    print(f"找到 {len(all_texts)} 个新的文本片段需要整理")
     
     # 使用GPT整理文本
     print("2. 使用GPT整理和连接文本...")
@@ -219,7 +223,8 @@ def main():
     
     print(f"\n处理完成！")
     print(f"整理后的文本已保存到: {output_file}")
-    print(f"已处理 {len(all_texts)} 个文本片段")
+    print(f"本次处理了 {len(all_texts)} 个新的文本片段")
+    print(f"总共已处理 {len(processed_images) + len(all_texts)} 个文本片段")
 
 if __name__ == "__main__":
     main() 
