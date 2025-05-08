@@ -1,5 +1,5 @@
 import os
-import openai
+from openai import OpenAI
 from dotenv import load_dotenv
 import re
 import json
@@ -10,7 +10,10 @@ from datetime import datetime
 load_dotenv()
 
 # Configure OpenAI
-openai.api_key = os.getenv('OPENAI_API_KEY')
+client = OpenAI(
+    api_key=os.getenv('OPENAI_API_KEY'),
+    base_url="https://api.openai.com/v1"
+)
 
 def get_processed_images(output_dir: str) -> Dict[str, str]:
     """
@@ -96,6 +99,10 @@ def organize_text_with_gpt(texts: List[Dict[str, str]]) -> str:
     Returns:
         整理后的文本
     """
+    # 检查API密钥
+    if not os.getenv('OPENAI_API_KEY'):
+        return "GPT处理失败: 未找到OPENAI_API_KEY环境变量"
+    
     # 构建提示词
     prompt = """请帮我整理和连接以下多张图片的OCR识别文本。这些文本可能来自同一篇文章的不同部分。
 请：
@@ -116,11 +123,9 @@ def organize_text_with_gpt(texts: List[Dict[str, str]]) -> str:
     prompt += "\n请整理后的文本："
     
     try:
-        # 创建OpenAI客户端
-        client = openai.OpenAI()
-        
+        # 调用API
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",  # 使用更经济的模型，如果需要可以改回gpt-4
             messages=[
                 {"role": "system", "content": "你是一个专业的中文文本整理助手，擅长处理OCR识别后的文本，能够识别和连接同一篇文章的不同部分。"},
                 {"role": "user", "content": prompt}
@@ -129,10 +134,17 @@ def organize_text_with_gpt(texts: List[Dict[str, str]]) -> str:
             max_tokens=4000
         )
         
-        return response.choices[0].message.content.strip()
+        # 提取回复内容
+        organized_text = response.choices[0].message.content.strip()
+        if not organized_text:
+            return "GPT处理失败: 返回的文本为空"
+        
+        return organized_text
         
     except Exception as e:
-        return f"GPT处理失败: {str(e)}"
+        error_msg = str(e)
+        print(f"GPT API调用出错: {error_msg}")  # 打印详细错误信息以便调试
+        return f"GPT处理失败: {error_msg}"
 
 def append_to_organized_text(output_file: str, new_text: str):
     """
@@ -151,6 +163,18 @@ def append_to_organized_text(output_file: str, new_text: str):
     with open(output_file, 'a', encoding='utf-8') as f:
         f.write("\n" + new_text + "\n")
 
+def clear_processing_history(output_dir: str):
+    """
+    清除处理历史记录
+    
+    Args:
+        output_dir: 输出目录
+    """
+    processed_file = os.path.join(output_dir, "organized_images.json")
+    if os.path.exists(processed_file):
+        os.remove(processed_file)
+        print("已清除处理历史记录")
+
 def main():
     """主函数"""
     # 设置文件路径
@@ -165,6 +189,9 @@ def main():
     
     print("开始整理文本...")
     
+    # 清除处理历史
+    clear_processing_history(output_dir)
+    
     # 读取OCR结果
     print("1. 读取OCR结果...")
     all_texts = read_ocr_results(ocr_file)
@@ -172,33 +199,27 @@ def main():
         print("没有找到OCR结果！")
         return
     
-    # 获取已处理的图片
-    processed_images = get_processed_images(output_dir)
-    
-    # 过滤出未处理的图片
-    new_texts = [text for text in all_texts if text['image'] not in processed_images]
-    
-    if not new_texts:
-        print("没有新的文本需要整理！")
-        return
-    
-    print(f"找到 {len(new_texts)} 个新的文本片段需要整理")
+    print(f"找到 {len(all_texts)} 个文本片段需要整理")
     
     # 使用GPT整理文本
     print("2. 使用GPT整理和连接文本...")
-    organized_text = organize_text_with_gpt(new_texts)
+    organized_text = organize_text_with_gpt(all_texts)
     
     # 保存结果
     print("3. 保存整理后的文本...")
+    # 清空原有文件内容
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write("# 整理后的文本\n\n")
+    # 追加新文本
     append_to_organized_text(output_file, organized_text)
     
     # 记录已处理的图片
-    for text in new_texts:
+    for text in all_texts:
         save_processed_image(output_dir, text['image'])
     
     print(f"\n处理完成！")
-    print(f"整理后的文本已追加到: {output_file}")
-    print(f"已处理 {len(new_texts)} 个新的文本片段")
+    print(f"整理后的文本已保存到: {output_file}")
+    print(f"已处理 {len(all_texts)} 个文本片段")
 
 if __name__ == "__main__":
     main() 
